@@ -1,12 +1,12 @@
-const express = require("express");
-const auth = require("../middleware/auth");
-const User = require("../models/User");
+const mongoose = require("mongoose");
 
-const router = express.Router();
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  nickname: { type: String, required: true },
+  phone: { type: String, required: true },
+}, { timestamps: true });
 
-router.get("/me", auth, async (req, res) => {
-  const me = await User.findById(req.userId).select("_id username createdAt");
-  return res.json(me);
-});
-
-module.exports = router;
+module.exports = mongoose.model("User", UserSchema);

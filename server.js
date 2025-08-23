@@ -1,22 +1,23 @@
 require('dotenv').config(); // โหลดค่า .env
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors'); // ✅ เพิ่ม CORS
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
 const app = express();
 
-// 🔹 ให้ server อ่าน JSON body จาก Postman
+// ✅ เปิด CORS
+app.use(cors());
+
+// ✅ ให้ server อ่าน JSON body จาก Postman / Frontend
 app.use(express.json());
 
-// 🔹 เชื่อม MongoDB
+// ✅ เชื่อม MongoDB
 async function connectDB() {
   try {
-    await mongoose.connect(MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(MONGO_URI);
     console.log('✅ MongoDB connected successfully!');
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
@@ -25,37 +26,43 @@ async function connectDB() {
 }
 connectDB();
 
-// 🔹 สร้าง Schema + Model สำหรับเก็บข้อมูลตัวอย่าง
+// ✅ สร้าง Schema + Model
 const TestSchema = new mongoose.Schema({
-  name: String,
-  email: String,
+  name: { type: String, required: true },
+  email: { type: String, required: true },
 });
 const TestModel = mongoose.model('Test', TestSchema);
 
-// 🔹 Route GET ตรวจสอบ server
+// ✅ Route GET ตรวจสอบ server
 app.get('/', (req, res) => {
-  res.send('Server is running!');
+  res.send('🚀 Server is running!');
 });
 
-// 🔹 Route GET ดึงข้อมูลทั้งหมดจาก MongoDB
+// ✅ Route GET ดึงข้อมูลทั้งหมด
 app.get('/tests', async (req, res) => {
   try {
     const data = await TestModel.find();
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error fetching data', details: error.message });
   }
 });
 
-// 🔹 Route POST สำหรับยิงข้อมูลเข้า MongoDB
+// ✅ Route POST เพิ่มข้อมูลใหม่
 app.post('/tests', async (req, res) => {
   try {
     const { name, email } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required!' });
+    }
+
     const newEntry = new TestModel({ name, email });
     await newEntry.save();
-    res.status(201).json({ message: 'Data saved!', data: newEntry });
+
+    res.status(201).json({ message: '✅ Data saved successfully!', data: newEntry });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error saving data', details: error.message });
   }
 });
 

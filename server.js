@@ -1,90 +1,73 @@
-require('dotenv').config(); // โหลดค่า .env
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors'); 
-
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+const path = require("path");
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// ✅ เปิด CORS ให้ Frontend เรียกได้
+// Middleware
 app.use(cors());
-
-// ✅ อ่าน JSON body
 app.use(express.json());
 
-// ✅ เชื่อม MongoDB
-async function connectDB() {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log('✅ MongoDB connected successfully!');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
-    process.exit(1);
-  }
-}
-connectDB();
+// MongoDB Connection
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ✅ สร้าง Schema + Model สำหรับ User
-const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true }, 
+// User Schema & Model
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  nickname: { type: String, required: true },
-  phone: { type: String, required: true },
-}, { timestamps: true });
+});
+const User = mongoose.model("User", userSchema);
 
-const UserModel = mongoose.model('User', UserSchema);
-
-// ✅ Route ตรวจสอบ server
-app.get('/', (req, res) => {
-  res.send('🚀 Server is running!');
+// Register API
+app.post("/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    res.status(400).json({ error: "Registration failed" });
+  }
 });
 
-// ✅ Route สมัครสมาชิก
-app.post('/register', async (req, res) => {
+// Login API
+app.post("/login", async (req, res) => {
   try {
-    const { email, password, firstName, lastName, nickname, phone } = req.body;
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-    // เช็คว่าข้อมูลครบไหม
-    if (!email || !password || !firstName || !lastName || !nickname || !phone) {
-      return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน!' });
-    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    // ป้องกัน email ซ้ำ
-    const existingUser = await UserModel.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'อีเมลนี้ถูกใช้ไปแล้ว!' });
-    }
-
-    // สร้าง user ใหม่
-    const newUser = new UserModel({
-      email,
-      password,   // ❗ตอนนี้เก็บแบบ plain-text (ควรใช้ bcrypt ในอนาคต)
-      firstName,
-      lastName,
-      nickname,
-      phone,
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
     });
 
-    await newUser.save();
-
-    res.status(201).json({ message: '✅ สมัครสมาชิกสำเร็จ!', data: newUser });
+    res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: '❌ เกิดข้อผิดพลาดในการสมัครสมาชิก', details: error.message });
+    res.status(500).json({ error: "Login failed" });
   }
 });
 
-// ✅ Route GET users (debug)
-app.get('/users', async (req, res) => {
-  try {
-    const users = await UserModel.find();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching users', details: error.message });
-  }
+// ✅ Serve React frontend
+app.use(express.static(path.join(__dirname, "frontend", "build")));
+
+// ✅ ใช้ Regex fallback (ชัวร์สุดกับ Express v5)
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "frontend", "build", "index.html"));
 });
 
 app.listen(PORT, () => {

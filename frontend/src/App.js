@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 
 function App() {
-  // Step ของฟอร์ม
   const [step, setStep] = useState(1);
 
-  // State เก็บข้อมูล
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -14,7 +12,6 @@ function App() {
     phone: "",
   });
 
-  // ฟังก์ชันเปลี่ยนค่า input
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -22,18 +19,16 @@ function App() {
     });
   };
 
-  // ฟังก์ชันกด Next Step
   const handleNext = (e) => {
     e.preventDefault();
     setStep(step + 1);
   };
 
-  // ฟังก์ชัน Submit สุดท้าย
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // 📌 ส่งไป backend
-    fetch("http://localhost:5000/register", {
+    // 📌 เปลี่ยนเป็น relative path
+    fetch("/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -52,7 +47,7 @@ function App() {
     <div style={{ maxWidth: "500px", margin: "20px auto", fontFamily: "sans-serif" }}>
       <h2>สมัครสมาชิก</h2>
 
-      {/* 📌 STEP 1: Email + Password */}
+      {/* STEP 1: Email + Password */}
       {step === 1 && (
         <form onSubmit={handleNext}>
           <input
@@ -79,7 +74,7 @@ function App() {
         </form>
       )}
 
-      {/* 📌 STEP 2: ข้อมูลส่วนตัว */}
+      {/* STEP 2: ข้อมูลส่วนตัว */}
       {step === 2 && (
         <form onSubmit={handleSubmit}>
           <input
@@ -124,7 +119,7 @@ function App() {
         </form>
       )}
 
-      {/* 📌 STEP 3: Success */}
+      {/* STEP 3: Success */}
       {step === 3 && (
         <div style={{ textAlign: "center", padding: "20px", color: "green" }}>
           <h3>🎉 สมัครบัญชีสำเร็จแล้ว!</h3>

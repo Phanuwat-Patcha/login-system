@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 
@@ -22,50 +21,51 @@ mongoose
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// User Schema & Model
+// User Schema & Model (ตรงกับฟอร์ม React)
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  nickname: { type: String, required: true },
+  phone: { type: String, required: true },
 });
+
 const User = mongoose.model("User", userSchema);
 
 // Register API
 app.post("/register", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    console.log("Received body:", req.body); // ตรวจสอบข้อมูลจาก React
+
+    const { email, password, firstName, lastName, nickname, phone } = req.body;
+
+    // เข้ารหัสรหัสผ่าน
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword });
-    await newUser.save();
-    res.status(201).json({ message: "User registered successfully" });
-  } catch (error) {
-    res.status(400).json({ error: "Registration failed" });
-  }
-});
 
-// Login API
-app.post("/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+    // สร้าง user ใหม่
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      firstName,
+      lastName,
+      nickname,
+      phone,
     });
 
-    res.json({ token });
+    await newUser.save();
+
+    res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    res.status(500).json({ error: "Login failed" });
+    console.error("Registration error:", error);
+    res.status(400).json({ error: "Registration failed" });
   }
 });
 
 // ✅ Serve React frontend
 app.use(express.static(path.join(__dirname, "frontend", "build")));
 
-// ✅ ใช้ Regex fallback (ชัวร์สุดกับ Express v5)
+// ✅ ใช้ fallback สำหรับ React Router
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "frontend", "build", "index.html"));
 });
